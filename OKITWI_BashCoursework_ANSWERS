@@ -1,0 +1,236 @@
+NAME: OKITWI MARTIN
+REG NO.: 2022/HD07/2051U
+STUDENT NO.: 2200702051U
+
+COURSE MODULE: MSB7103- BIOUNIX and SHELL SCRIPTING
+INSTRUCTOR: Mr LUJUMBA IBRA
+Submission Date: 26-JAN-2023.
+
+
+### Manipulating VCF files:
+
+1. Describe the format of the file and the data stored.
+
+    The file sample.vcf is a variant call format (VCF) file used for storing genetic variations between a reference genome 
+    and sequences that have been aligned to it. It contains a header section and a data section.
+    The header section has lines or headers that start with a double hash tag (##), except for the last line that starts with
+    a single hash tag (#). The first and last lines of the header setion are mandatory(must be present), with the first line 
+    containing file version, while last line contains contains headers of the columns/fields of the data section.
+    The file sample.vcf has 2250 heade lines. (grep -c "^#" sample.vcf = 2250).
+    The data section of the vcf file contains information about variations between the reference genome sequence and the sample
+    reads found during alignment. It has 9 mandatory columns and an optional fields for samples sequenced, and one line per 
+    variant as below;
+        1. CHROM: the name chromosome or contig on which the variant is located.
+        2. POS: the position of the variant on the chromosome, in base-pair units.
+        3. ID: a unique identifier for the variant, such as a dbSNP or COSMIC ID.
+        4. REF: the reference allele for the location of the variant.
+        5. ALT: the alternate allele(s) of the variant, separated by commas.
+        6. QUAL: a quality score for the variant, which indicate the confidence in the variant call.
+        7. FILTER: a flag indicating whether the variant passed or failed certain quality filters.
+        8. INFO: additional information about the variant, such as functional annotations or population frequency.
+        9. FORMAT: the format of the sample-specific data in the following columns.
+        10. SRR13107018: the genotype of the first sample for the variant, encoded as a string of alleles, separated by a / or | character.
+        11. SRR13107019: the genotype of sample  for the variant, encoded in the same way.
+        12. SRR13107020: the genotype of the nth sample for the variant, encoded in the same way
+        13. SRR13107021: the genotype of the nth sample for the variant, encoded in the same way
+        14. SRR13107022: the genotype of the nth sample for the variant, encoded in the same way
+        15. SRR13107023: the genotype of the nth sample for the variant, encoded in the same way
+
+2. What does the header section of the file contain
+    
+    The header contains the following informartion;
+    The header section has lines or headers that start with a double hash tag (##), except for the last line that starts with
+    a single hash tag (#). The first and last lines of the header setion are mandatory(must be present), with the first line 
+    containing file version, while last line contains contains headers of the columns/fields of the data section.
+    The file sample.vcf has 2250 heade lines. (grep -c "^#" sample.vcf = 2250), which contain the following information;  
+        ##file format of the VCF file (sample.vcf is version 4.2)
+        ##ALT=<ID 
+        ##FILTER = Information about filtes used, and whether they were passed or not. (sample.vcf passed all filters)
+        ##FORMAT = Information about the format used in the data section
+        ##GATKCommandLine = Information about the Gatk commalines used to generate the vcf file
+        ##INFO = Information about the data fields in the data section (sample.vcf has 17 INFO lines; grep -c "^##INFO" sample.vcf)
+        ##contigs = the number of contigs in the reference genome ( the ref genome used had 2211 contigs; grep -c "^##contig" sample.vcf)
+        ##sources of the data (sample.vcf had 3 sources; GenomicsDBImport, GenotypeGVCFs, HaplotypeCaller)
+
+3. How many samples are in the file?
+
+        There are 6 samples in the sample.vcf file.
+
+        vcf-query -l sample.vcf | wc -l
+        bcftools query -l sample.vcf | wc -l
+
+4. How many variants are in the file?
+
+        There are 398246 variants.
+        I used the inverse grep to exlude all header lines with the pattern "^#". This counts only the variant lines in the data section
+        
+        grep -v "^#" sample.vcf | wc -l  # all lines without 
+
+5. How would you extract the chromosome, position, QualByDepth and RMSMappingQuality fields? Save the output to a tab-delimited file.
+        
+        I first created a bcf file, then indexed it using bcftools using the following commands
+                bcftools view -O b <sample.vcf> -o <sample.bcf>
+                bcftools index sample.bcf 
+
+        I then extracted the chromosome, position QualByDepth and Mapping quality using the following command line.
+                bcftools query -f '%CHROM\t%POS[\t%QD;%MQ]\n' sample.vcf > output.vcf
+
+6. Extract data that belongs to chromosomes 2,4 and MT
+
+        I used the awk tool and specified the required chromosomes as below:
+                awk '$1=="2" || $1=="4" || $1=="MT"' sample.vcf > Chr_24MT.vcf
+
+7. Print out variants that do not belong to chr20:1-30000000
+
+        I used the inverse grep to exlude all lines of the header except the last line containing headers of the columns of the data section.
+        I then used awk to select variants not lieing within nucleotides 1-30000000 of chr 20 and saved the ouptut in file variants_not_on_chr20_1-30000000.vcf
+
+                grep -v '^##' sample.vcf | awk -F '\t' '($1 != "chr20" || $2 > 30000000) {print $1, $2, $4, $5}' > variants_not_on_chr20_1-30000000.vcf
+
+8. Extract variants that belong to SRR13107019
+
+        I used the bcftools query tool to select the CHROM, POS, REF, ALT fields and saved the output as SRR13107019_variants.vcf
+                bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\n' -s SRR13107019 sample.vcf > SRR13107019_variants.vcf
+
+9. Filter out variants with a QualByDepth above 7
+        
+        I used the bcftools filter tool to include only variants where Depth Quality was greater than 7, ouptu file saved as QD_Above7_variants.vcf
+                bcftools filter -i 'QD > 7' sample.vcf > QD_Above7_variants.vcf
+
+10. How many contigs are referred to in the file. Check the header section
+
+        There are 2211 contigs referred to.
+        I used the grep tool to count only lines which matched the pattern "^##contig" 
+                grep -c "^##contig" sample.vcf  
+
+11. Comment on the eighth and ninth columns of the file.
+
+        Eighth col=INFO: contains additional information in semicolon (;) seperated short keys, about variants tht occur across all samples. 
+        This includes:
+                AC = (Allele count for each alternative allele)
+                AF = (Allele frequencyfor eact ALT allele) 
+                AN = (Total number of alleles in each called genotype),
+                DP = (Approximate read depth), 
+                ExcessHet = (Expected heterozygosity based on Hardy-Weinberg equilibrium),
+                MLEAC = (Maximum likelihood expectation (MLE) for the allele counts (not necessarily the same as the AC), for  each ALT allele, in the same order as listed)
+                MLEAF = (Maximum likelihood expectation (MLE) for the allele frequency (not necessarily the same as the AF), for each ALT allele, in the same order as listed). 
+                MQ = (Mapping quality, a measure of the quality of the alignment), 
+                QD = (QD: Quality by depth, a measure of the quality of the variant call divided by the read depth)
+                SOR = (Symmetric Odds Ratio of 2x2 contingency table to detect strand bias) 
+                BaseQRanksum:
+
+        Ninth column = FORMAT: specifies the format in which sample specific genotype information will be represented.
+        It specifies the arrangement of semicolon seperated short keys GT:AD:DP:GQ:PL.
+                GT = Genotype that the individual/sample carries at a particular location
+                AD = Allele Depth: the number of reads for each allele at a particular position
+                DP = Read depth: the number of reads for each variant at a particular location
+                GQ = Genotype Quality: the quality score for each genotype called
+                PL = Phred-scaled Likelihood: the likelihood/probability of the genotype calls
+
+12. Extract data on the read depth of called variants for sample SRR13107018
+
+        I used the bcftools querry tools. Output file is SRR13107018_DP.vcf. Refer to script.
+                bcftools querry -f '%DP\n' -s SRR13107018 sample.vcf > SRR13107018_DP.vcf
+
+13. Extract data on the allele frequency of alternate alleles. Combine this data with the  chromosome and position of the alternate allele
+
+        I used the bcftools query tool. Output file is Allele_freqs_ALT.vcf. Refer to script
+                bcftools query -f '%CHROM\t%POS\t%ALT\t%AF\n' sample.vcf > Allele_freqs_ALT.vcf
+
+
+### Manipulating SAM files:
+
+1. Describe the format of the file and the data stored
+
+        This is a Sequence Alignment Map (SAM) file containing alignment information of 36142 sequences mapped to the human reference genome
+                grep -v "^@" sample.sam | wc -l   = 36142 sequences.
+
+2. What does the header section of the file contain?
+
+        The header section of the file contains information about the reference sequence, the program used for generating the sequences,
+        readgroups. Each line in header starts with @ and a 2-letter tag that indicates the type of information in the line;
+                @HD line contains information about the SAM file version and sort order of alignments
+                @SQ lines contain information about the sequence dictionary including sequence name (SN) and sequence length (LN)
+                @RG lines contains information about the read groups of the file, including read_group ID (ID), sequencing platform (PL), sample name (SM)
+                @PG contains information about the program/tool with which the sam file was generated like program ID (ID), name (PN), version (VN) and command line (CL)
+
+3. How many samples are in the file?
+
+        There are 249 samples in the file.
+        This can be determined by counting the number of read group lines since these were unique for each sample
+
+                grep -c "^@RG" sample.sam  # 249 samples
+                grep -E '^@RG' sample.sam | awk '{print $2}' | awk -F ':' '{print $2}' | sort | uniq | wc -l
+        
+4. How many alignments are in the file?
+        
+        There are 35511 alignments in the file.
+        Using the samtools view tool, we can know the number of alignments in the file 
+               samtools view -F 4 sample.sam | wc -l  # field 4 is the 1-based mapping position in the SAM file
+                
+5. Get summary statistics for the alignments in the file
+        
+        Using the samtools flagstat tool, we can know obtain summary statistics for the alignments. The statistics file is saved as Alignment_stats.txt
+                samtools flagstat sample.sam > Alignment_stats.txt # 35511 /36142 reads (98.25%) were aligned/mapped
+
+6. Count the number of fields in the file
+        
+        There are 18 fields in the file.
+        I used the awk tool determine the count the fields.
+                awk '{print NF}' sample.sam | sort -nu | tail -1 # 18 fields
+
+7. Print all lines in the file that have @SQ and sequence name tag beginning with NT_
+        
+        There are 88 lines with @SQ and sequence name starting with NT_
+        I used the grep tool as below, and saved these 88 lines in an output names AllSQ_NTlines.txt
+                grep "^@SQ.*NT_" sample.sam > AllSQ_NTlines.txt 
+
+8. Print all lines in the file that have @RG and LB tag beginning with Solexa
+        
+        There are 146 lines with @RG and LB tag solexa. I saved these lines in an output file named AllRG_LBSolexa_lines.txt
+                grep "^@RG.*LB:Solexa" sample.sam > AllRG_LBSolexa_lines.txt  # 146 lines
+
+9. Extract primarily aligned sequences and save them in another file
+
+        In a SAM file, reads that are not primary alignments have the flag value set at 0x100 (256).
+        I inverse grepped to exclude sequences with a flag value of 256, and saved output as Primarily_aligned_reads.sam
+                grep -v "256" sample.sam > Primarily_aligned_reads.sam
+
+10. Extract alignments that map to chromosomes 1 and 3. Save the output in BAM format
+
+        I used samtools view too to create a bam file, then used extracted chr1 and chr3 alignments, and saved them in output named Chromosomes_1_3.bam
+                samtools view -Sb sample.sam > sample.bam
+                samtools view -b sample.bam chr1 chr3 > chromosomes_1_3.bam
+
+11. How would you obtain unmapped reads from the file?
+
+        I used the samtools view tool to filter reads whose flag value = 4 (unmapped), and svaed them in a file named Unmapped_reads.bam
+                samtools view -f4 -b sample.bam > Unmapped_reads.bam
+
+12. How many reads are aligned to chromosome 4?
+        
+        There are 631 reads aligned to chromosome 4.
+        This steps requires an index file of the bam file. 
+        I used the samtools index tool to create an index (.bam.bai), then then counted reads usng the samtools view tool.
+
+                samtools index sample.bam  # indexing the bam
+                samtools view -f4 -c sample.bam  # counting the reads
+
+13. Comment of the second and sixth column of the file
+
+        Second Column = FLAG: contains bitwise flags that provide information about the read and its alignment.
+                The flag is a decimal number representing specific attributes of the read, like whether the read is paired-end, 
+                mapped or reverse-complemented. the flag value is thus decodable usinga bitwise operator.
+
+        Sixth column = CIGAR string field: A sequence of numbers and letters that descripe the alignment of reads to 
+                reference sequence. It encodes the alignment of reads as matches (M), Deletions (D), Insertions (I), 
+                Mismatches (X), Soft clipping (S), Hard clipping (H), etc.
+                eg 18M2D5I3X2S7H = 18 Matches, 2 Deletions, 5 Insertions, 2 Softclippings (2 clipped Nts present in read), 
+                7 Hardclippings (7 hard clipped Nts absent in the read).
+
+14. Extract all optional fields of the file and save them in “optional_fields.txt”
+
+        I used a combination of samtools and regex expressions to discard the 11 mandatory fields and only retain the optional fileds.
+        Output saved in the file Extracted_optional_fields.txt
+                samtools view -h sample.bam | cut -f 12- | grep -Eo "RG:Z:[^\t]+" > Extracted_optional_fields.txt
+
